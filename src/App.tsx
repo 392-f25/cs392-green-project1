@@ -1,7 +1,7 @@
 import {  useMemo, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 
-type Category = 'Football' | 'Basketball' | "Women's Field Hockey"
+type Category = 'All Tickets' | 'Football' | 'Basketball' | "Women's Field Hockey"
 
 type TicketListing = {
   id: number
@@ -32,7 +32,7 @@ type FormState = {
   notes: string
 }
 
-const categories: Category[] = ['Football', 'Basketball', "Women's Field Hockey"]
+const categories: Category[] = ['All Tickets', 'Football', 'Basketball', "Women's Field Hockey"]
 
 const seedListings: TicketListing[] = [
   {
@@ -89,7 +89,7 @@ const defaultOffer: Offer = {
 }
 
 const App = () => {
-  const [selectedCategory, setSelectedCategory] = useState<Category>('Football')
+  const [selectedCategory, setSelectedCategory] = useState<Category>('All Tickets')
   const [listings, setListings] = useState<TicketListing[]>(seedListings)
   const [formData, setFormData] = useState<FormState>({
     category: 'Football',
@@ -103,9 +103,14 @@ const App = () => {
   const [formError, setFormError] = useState('')
   const [activeOffer, setActiveOffer] = useState<Offer | null>(defaultOffer)
   const [phoneShared, setPhoneShared] = useState(false)
+  // Track requested ticket IDs
+  const [requestedTickets, setRequestedTickets] = useState<number[]>([])
 
   const filteredListings = useMemo(
-    () => listings.filter((listing) => listing.category === selectedCategory),
+    () =>
+      selectedCategory === 'All Tickets'
+        ? listings
+        : listings.filter((listing) => listing.category === selectedCategory),
     [listings, selectedCategory],
   )
 
@@ -159,7 +164,7 @@ const App = () => {
     }
 
     const parsedPrice = Number.parseFloat(formData.price)
-    if (Number.isNaN(parsedPrice) || parsedPrice > 0) {
+    if (Number.isNaN(parsedPrice) || parsedPrice < 0) {
       setFormError('Enter a valid price greater than or equal to zero.')
       return
     }
@@ -190,6 +195,11 @@ const App = () => {
       section: '',
       notes: '',
     }))
+  }
+
+  // Handle request to buy (move to top-level)
+  function handleRequestToBuy(listingId: number) {
+    setRequestedTickets((prev) => [...prev, listingId])
   }
 
   const handleSimulateOffer = (listing: TicketListing) => {
@@ -286,46 +296,67 @@ const App = () => {
               </div>
             ) : (
               <div className="grid gap-4 md:grid-cols-2">
-                {filteredListings.map((listing) => (
-                  <article key={listing.id} className="flex h-full flex-col gap-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-xs uppercase tracking-wide text-violet-500">{listing.category}</p>
-                        <h3 className="text-lg font-semibold text-slate-900">{listing.title}</h3>
-                        <p className="text-sm text-slate-500">{listing.gameDate}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-lg font-semibold text-slate-900">${listing.price.toFixed(2)}</p>
-                        <p className="text-xs text-slate-500">{listing.quantity} ticket{listing.quantity > 1 ? 's' : ''}</p>
-                      </div>
-                    </div>
-                    <div className="rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-600">
-                      <p className="font-medium text-slate-700">Section</p>
-                      <p>{listing.section}</p>
-                    </div>
-                    {listing.notes && (
-                      <p className="text-sm text-slate-600">{listing.notes}</p>
-                    )}
-                    <div className="mt-auto flex flex-wrap items-center justify-between gap-3 pt-3 text-sm text-slate-500">
-                      <span>Posted by {listing.postedBy}</span>
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          className="rounded-full border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:text-slate-700"
-                        >
-                          Request to buy
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleSimulateOffer(listing)}
-                          className="rounded-full bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-700"
-                        >
-                          Simulate buyer offer
-                        </button>
-                      </div>
-                    </div>
-                  </article>
-                ))}
+                {filteredListings.map((listing) => {
+                  const isRequested = requestedTickets.includes(listing.id)
+                  return (
+                    <article
+                      key={listing.id}
+                      className={`flex h-full flex-col gap-4 rounded-lg border p-5 shadow-sm ${
+                        isRequested
+                          ? 'border-emerald-300 bg-emerald-50'
+                          : 'border-slate-200 bg-white'
+                      }`}
+                    >
+                      {isRequested ? (
+                        <div className="flex flex-col items-center justify-center h-full py-8">
+                          <h3 className="text-2xl font-bold text-emerald-700 mb-2">Thanks for buying!</h3>
+                          <p className="text-sm text-emerald-800 mb-1">Your order and details have been sent to the seller.</p>
+                          <p className="text-xs text-emerald-700">Check your email for next steps.</p>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-xs uppercase tracking-wide text-violet-500">{listing.category}</p>
+                              <h3 className="text-lg font-semibold text-slate-900">{listing.title}</h3>
+                              <p className="text-sm text-slate-500">{listing.gameDate}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-lg font-semibold text-slate-900">${listing.price.toFixed(2)}</p>
+                              <p className="text-xs text-slate-500">{listing.quantity} ticket{listing.quantity > 1 ? 's' : ''}</p>
+                            </div>
+                          </div>
+                          <div className="rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                            <p className="font-medium text-slate-700">Section</p>
+                            <p>{listing.section}</p>
+                          </div>
+                          {listing.notes && (
+                            <p className="text-sm text-slate-600">{listing.notes}</p>
+                          )}
+                          <div className="mt-auto flex flex-wrap items-center justify-between gap-3 pt-3 text-sm text-slate-500">
+                            <span>Posted by {listing.postedBy}</span>
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                className="rounded-full border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:text-slate-700"
+                                onClick={() => handleRequestToBuy(listing.id)}
+                              >
+                                Request to buy
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleSimulateOffer(listing)}
+                                className="rounded-full bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-700"
+                              >
+                                Simulate buyer offer
+                              </button>
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </article>
+                  )
+                })}
               </div>
             )}
           </div>
