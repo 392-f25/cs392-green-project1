@@ -229,37 +229,37 @@ const App = () => {
     setRequestedTickets((prev) => [...prev, listingId])
   }
 
-  const handleSimulateOffer = (listing: TicketListing) => {
-    const buyers = [
-      {
-        name: 'Sasha Lee',
-        email: 'sasha.lee@u.northwestern.edu',
-        intro: 'I can meet at Norris tonight or send the transfer immediately.',
-      },
-      {
-        name: 'Priya Natarajan',
-        email: 'priya.n@u.northwestern.edu',
-        intro: 'Happy to pay through Zelle and grab the tickets before practice.',
-      },
-      {
-        name: 'Owen Ramirez',
-        email: 'owen.r@u.northwestern.edu',
-        intro: 'Let me know if the seats are still open — I need two together.',
-      },
-    ]
+  // const handleSimulateOffer = (listing: TicketListing) => {
+  //   const buyers = [
+  //     {
+  //       name: 'Sasha Lee',
+  //       email: 'sasha.lee@u.northwestern.edu',
+  //       intro: 'I can meet at Norris tonight or send the transfer immediately.',
+  //     },
+  //     {
+  //       name: 'Priya Natarajan',
+  //       email: 'priya.n@u.northwestern.edu',
+  //       intro: 'Happy to pay through Zelle and grab the tickets before practice.',
+  //     },
+  //     {
+  //       name: 'Owen Ramirez',
+  //       email: 'owen.r@u.northwestern.edu',
+  //       intro: 'Let me know if the seats are still open — I need two together.',
+  //     },
+  //   ]
 
-    const randomBuyer = buyers[Math.floor(Math.random() * buyers.length)]
+  //   const randomBuyer = buyers[Math.floor(Math.random() * buyers.length)]
 
-    setActiveOffer({
-      listingId: listing.id,
-      buyerName: randomBuyer.name,
-      buyerEmail: randomBuyer.email,
-      message: `Hey! I saw your post for ${listing.title} (${listing.gameDate}). ${randomBuyer.intro}`,
-    })
-    setPhoneShared(false)
-    setNotificationActive(false)
-    setPendingOffer(null)
-  }
+  //   setActiveOffer({
+  //     listingId: listing.id,
+  //     buyerName: randomBuyer.name,
+  //     buyerEmail: randomBuyer.email,
+  //     message: `Hey! I saw your post for ${listing.title} (${listing.gameDate}). ${randomBuyer.intro}`,
+  //   })
+  //   setPhoneShared(false)
+  //   setNotificationActive(false)
+  //   setPendingOffer(null)
+  // }
 
   const handleSharePhoneNumber = () => {
     setPhoneShared(true)
