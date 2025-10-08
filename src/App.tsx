@@ -328,22 +328,13 @@ const App = () => {
                           )}
                           <div className="mt-auto flex flex-wrap items-center justify-between gap-3 pt-3 text-sm text-slate-500">
                             <span>Posted by {listing.postedBy}</span>
-                            <div className="flex flex-wrap gap-2">
-                              <button
-                                type="button"
-                                className="rounded-full border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:text-slate-700"
-                                onClick={() => handleRequestToBuy(listing.id)}
-                              >
-                                Request to buy
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleSimulateOffer(listing)}
-                                className="rounded-full bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-700"
-                              >
-                                Simulate buyer offer
-                              </button>
-                            </div>
+                            <button
+                              type="button"
+                              className="rounded-full bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-700"
+                              onClick={() => handleRequestToBuy(listing.id)}
+                            >
+                              Request to buy
+                            </button>
                           </div>
                         </>
                       )}
