@@ -311,7 +311,7 @@ const App = () => {
                         <div className="flex flex-col items-center justify-center h-full py-8">
                           <h3 className="text-2xl font-bold text-emerald-700 mb-2">Thanks for buying!</h3>
                           <p className="text-sm text-emerald-800 mb-1">Your order and details have been sent to the seller.</p>
-                          <p className="text-xs text-emerald-700">Check your email for next steps.</p>
+                          <p className="text-xs text-emerald-700">If the seller accepts your contact request, you will receive an email with the seller's phone number and email to continue communication.</p>
                         </div>
                       ) : (
                         <>
