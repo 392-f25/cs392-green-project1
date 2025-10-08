@@ -490,7 +490,7 @@ const App = () => {
               <div>
                 <h2 className="text-lg font-semibold text-slate-900">Incoming offer</h2>
                 <p className="text-sm text-slate-500">
-                  This simulates how another student reaches out when they want to buy your ticket.
+                  Incoming offers from students interested in your tickets will appear here.
                 </p>
               </div>
               {activeOffer && (
