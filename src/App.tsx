@@ -1,4 +1,4 @@
-import {  useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 
 type Category = 'All Tickets' | 'Football' | 'Basketball' | "Women's Field Hockey"
@@ -96,8 +96,42 @@ const App = () => {
   const [formError, setFormError] = useState('')
   const [activeOffer, setActiveOffer] = useState<Offer | null>(null)
   const [phoneShared, setPhoneShared] = useState(false)
+  const [notificationActive, setNotificationActive] = useState(false)
+  const [pendingOffer, setPendingOffer] = useState<Offer | null>(null)
   // Track requested ticket IDs
   const [requestedTickets, setRequestedTickets] = useState<number[]>([])
+  const listingsRef = useRef(listings)
+
+  useEffect(() => {
+    listingsRef.current = listings
+  }, [listings])
+
+  useEffect(() => {
+    console.log('Setting up auto-offer timer for 10 seconds...')
+    const timer = window.setTimeout(() => {
+      console.log('Auto-offer timer fired!')
+      const currentListings = listingsRef.current
+      if (currentListings.length === 0) {
+        console.log('No listings available for auto-offer')
+        return
+      }
+
+      const targetListing = currentListings[0]
+      console.log('Creating auto-offer for listing:', targetListing.title)
+      setPendingOffer({
+        listingId: targetListing.id,
+        buyerName: 'Taylor Nguyen',
+        buyerEmail: 'taylor.nguyen@u.northwestern.edu',
+        message: `Hi! I'm hoping to grab your ${targetListing.title} tickets. I'm available to pay immediately via Zelle or Venmo.`,
+      })
+      setNotificationActive(true)
+    }, 5000)
+
+    return () => {
+      console.log('Cleaning up auto-offer timer')
+      window.clearTimeout(timer)
+    }
+  }, [])
 
   const filteredListings = useMemo(
     () =>
@@ -223,19 +257,45 @@ const App = () => {
       message: `Hey! I saw your post for ${listing.title} (${listing.gameDate}). ${randomBuyer.intro}`,
     })
     setPhoneShared(false)
+    setNotificationActive(false)
+    setPendingOffer(null)
   }
 
   const handleSharePhoneNumber = () => {
     setPhoneShared(true)
   }
 
-  const handleCategoryClick = (category: Category) => {
-    setSelectedCategory(category)
+  const handleNotificationClick = () => {
+    if (!pendingOffer) {
+      return
+    }
+
+    const matchingListing = listings.find((listing) => listing.id === pendingOffer.listingId)
+    const fallbackListing = matchingListing ?? listings[0]
+
+    if (fallbackListing) {
+      const offerForListing: Offer = {
+        ...pendingOffer,
+        listingId: fallbackListing.id,
+      }
+
+      setActiveOffer(offerForListing)
+      setPhoneShared(false)
+    }
+
+    setNotificationActive(false)
+    setPendingOffer(null)
   }
 
   const handleDismissOffer = () => {
     setActiveOffer(null)
     setPhoneShared(false)
+    setNotificationActive(false)
+    setPendingOffer(null)
+  }
+
+  const handleCategoryClick = (category: Category) => {
+    setSelectedCategory(category)
   }
 
   const phoneNumber = '(312) 555-0184'
@@ -250,8 +310,31 @@ const App = () => {
               A trusted marketplace for Northwestern students to pass their tickets.
             </p>
           </div>
-          <div className="rounded-full bg-violet-100 px-4 py-1 text-sm font-medium text-violet-700">
-            Wildside verified community
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handleNotificationClick}
+              disabled={!notificationActive}
+              aria-label={notificationActive ? 'New buyer offer available' : 'No new notifications'}
+              className={`relative flex h-9 w-9 items-center justify-center rounded-full border text-lg transition ${
+                notificationActive
+                  ? 'border-emerald-300 bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
+                  : 'border-slate-200 bg-white text-slate-400'
+              } ${notificationActive ? '' : 'cursor-default'}`}
+            >
+              <span role="img" aria-hidden="true">
+                🔔
+              </span>
+              {notificationActive && (
+                <span className="absolute -top-1 -right-1 inline-flex h-2.5 w-2.5">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                </span>
+              )}
+            </button>
+            <div className="rounded-full bg-violet-100 px-4 py-1 text-sm font-medium text-violet-700">
+              Wildside verified community
+            </div>
           </div>
         </div>
       </header>
