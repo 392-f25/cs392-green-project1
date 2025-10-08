@@ -81,13 +81,6 @@ const seedListings: TicketListing[] = [
   },
 ]
 
-const defaultOffer: Offer = {
-  listingId: 1,
-  buyerName: 'Joe Hampton',
-  buyerEmail: 'joe.h@u.northwestern.edu',
-  message: `Hi David! I saw your listing for the Northwestern vs UCLA game. I'm ready to take the ticket and can transfer Wildside points right now if it's still available. Let me know!`,
-}
-
 const App = () => {
   const [selectedCategory, setSelectedCategory] = useState<Category>('All Tickets')
   const [listings, setListings] = useState<TicketListing[]>(seedListings)
@@ -101,7 +94,7 @@ const App = () => {
     notes: '',
   })
   const [formError, setFormError] = useState('')
-  const [activeOffer, setActiveOffer] = useState<Offer | null>(defaultOffer)
+  const [activeOffer, setActiveOffer] = useState<Offer | null>(null)
   const [phoneShared, setPhoneShared] = useState(false)
   // Track requested ticket IDs
   const [requestedTickets, setRequestedTickets] = useState<number[]>([])
@@ -534,7 +527,7 @@ const App = () => {
               </div>
             ) : (
               <div className="rounded-lg border border-dashed border-slate-300 p-4 text-sm text-slate-500">
-                No active offers yet. Choose “Simulate buyer offer” on any ticket to preview the flow.
+                No active offers yet.
               </div>
             )}
           </section>
