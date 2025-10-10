@@ -1,6 +1,8 @@
 import { useState } from 'react'
-import { signInWithPopup } from 'firebase/auth'
+import { signInWithPopup, signOut } from 'firebase/auth'
 import { auth, googleProvider } from '../firebase'
+
+const ALLOWED_DOMAIN = 'u.northwestern.edu'
 
 const SignIn = () => {
   const [error, setError] = useState<string>('')
@@ -11,8 +13,22 @@ const SignIn = () => {
     setIsLoading(true)
 
     try {
-      await signInWithPopup(auth, googleProvider)
-      // User is automatically signed in and auth state listener will handle the redirect
+      const result = await signInWithPopup(auth, googleProvider)
+      const userEmail = result.user.email
+
+      // Check if email is from Northwestern domain
+      if (!userEmail || !userEmail.endsWith(`@${ALLOWED_DOMAIN}`)) {
+        // Sign out the user immediately
+        await signOut(auth)
+        setError(
+          `Access denied. Only Northwestern University students with @${ALLOWED_DOMAIN} email addresses can use this platform.`
+        )
+        setIsLoading(false)
+        return
+      }
+
+      // User is authenticated with correct domain
+      // Auth state listener will handle the redirect
     } catch (err) {
       if (err instanceof Error) {
         setError(err.message)
@@ -61,7 +77,7 @@ const SignIn = () => {
           <div className="text-center">
             <h2 className="text-xl font-semibold text-slate-900">Welcome!</h2>
             <p className="mt-1 text-sm text-slate-600">
-              Sign in with your Google account to get started
+              Sign in with your Northwestern email (@u.northwestern.edu)
             </p>
           </div>
 
