@@ -9,6 +9,8 @@ type FormState = {
   category: Category
   title: string
   gameDate: string
+  gameTime: string
+  allDay: boolean
   price: string
   quantity: string
   section: string
@@ -26,6 +28,8 @@ const PostListing = ({ user }: Props) => {
     category: 'Football',
     title: '',
     gameDate: '',
+    gameTime: '',
+    allDay: false,
     price: '',
     quantity: '1',
     section: '',
@@ -54,6 +58,12 @@ const PostListing = ({ user }: Props) => {
       case 'gameDate':
         updateFormData({ gameDate: value })
         break
+      case 'gameTime':
+        updateFormData({ gameTime: value })
+        break
+      case 'allDay':
+        updateFormData({ allDay: (event.target as HTMLInputElement).checked })
+        break
       case 'price':
         updateFormData({ price: value })
         break
@@ -81,6 +91,11 @@ const PostListing = ({ user }: Props) => {
       return
     }
 
+    if (!formData.allDay && !formData.gameTime.trim()) {
+      setFormError('Please provide a time for the event or check "All day".')
+      return
+    }
+
     const parsedPrice = Number.parseFloat(formData.price)
     if (Number.isNaN(parsedPrice) || parsedPrice < 0) {
       setFormError('Enter a valid price greater than or equal to zero.')
@@ -97,7 +112,11 @@ const PostListing = ({ user }: Props) => {
       await addDoc(collection(db, 'listings'), {
         category: formData.category,
         title: formData.title.trim(),
-        gameDate: formData.gameDate.trim(),
+        gameDate: formData.allDay
+          ? formData.gameDate.trim()
+          : formData.gameTime
+          ? `${formData.gameDate} ${formData.gameTime}`
+          : formData.gameDate.trim(),
         price: Math.round(parsedPrice * 100) / 100,
         quantity: correctedQuantity,
         section: formData.section.trim() || 'General Admission',
@@ -119,6 +138,8 @@ const PostListing = ({ user }: Props) => {
         category: 'Football',
         title: '',
         gameDate: '',
+        gameTime: '',
+        allDay: false,
         price: '',
         quantity: '1',
         section: '',
@@ -185,15 +206,41 @@ const PostListing = ({ user }: Props) => {
               <label className="text-sm font-medium text-slate-700" htmlFor="gameDate">
                 Date & Time
               </label>
-              <input
-                id="gameDate"
-                name="gameDate"
-                value={formData.gameDate}
-                onChange={handleFormChange}
-                placeholder="Sat · Oct 19 · 6:30 PM"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-200"
-                required
-              />
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <input
+                  id="gameDate"
+                  name="gameDate"
+                  type="date"
+                  value={formData.gameDate}
+                  onChange={handleFormChange}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-200"
+                  required
+                />
+
+                <input
+                  id="gameTime"
+                  name="gameTime"
+                  type="time"
+                  value={formData.gameTime}
+                  onChange={handleFormChange}
+                  disabled={formData.allDay}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-200 disabled:opacity-50"
+                  aria-disabled={formData.allDay}
+                />
+
+                <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+                  <input
+                    id="allDay"
+                    name="allDay"
+                    type="checkbox"
+                    checked={formData.allDay}
+                    onChange={handleFormChange}
+                    className="h-4 w-4 rounded border-slate-300 text-violet-600 focus:ring-violet-500"
+                  />
+                  All day
+                </label>
+              </div>
+              <p className="mt-1 text-xs text-slate-500">Pick a date and time — or check "All day" if time doesn't apply.</p>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
