@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 
 type ClockTimePickerProps = {
   value: string
@@ -10,11 +10,74 @@ const ClockTimePicker = ({ value, onChange, disabled = false }: ClockTimePickerP
   const [isOpen, setIsOpen] = useState(false)
   const [hour, setHour] = useState(value ? parseInt(value.split(':')[0]) : 12)
   const [minute, setMinute] = useState(value ? parseInt(value.split(':')[1]) : 0)
-  const [period, setPeriod] = useState(value && parseInt(value.split(':')[0]) < 12 ? 'AM' : 'PM')
+  const [period, setPeriod] = useState(value && value.includes('AM') ? 'AM' : value && value.includes('PM') ? 'PM' : 'AM')
+  const [isDragging, setIsDragging] = useState<'hour' | 'minute' | null>(null)
+  const clockRef = useRef<HTMLDivElement>(null)
+
+  const handleClockMouseDown = (e: React.MouseEvent<HTMLDivElement>, type: 'hour' | 'minute') => {
+    e.stopPropagation()
+    setIsDragging(type)
+  }
+
+  const handleClockTouchStart = (e: React.TouchEvent<HTMLDivElement>, type: 'hour' | 'minute') => {
+    e.stopPropagation()
+    setIsDragging(type)
+  }
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isDragging || !clockRef.current) return
+
+    const rect = clockRef.current.getBoundingClientRect()
+    const centerX = rect.width / 2
+    const centerY = rect.height / 2
+    const x = e.clientX - rect.left - centerX
+    const y = e.clientY - rect.top - centerY
+
+    let angle = Math.atan2(y, x) * (180 / Math.PI) + 90
+
+    if (angle < 0) angle += 360
+
+    if (isDragging === 'hour') {
+      const newHour = Math.round(angle / 30) % 12
+      setHour(newHour === 0 ? 12 : newHour)
+    } else if (isDragging === 'minute') {
+      const newMinute = Math.round(angle / 6) % 60
+      setMinute(newMinute)
+    }
+  }
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (!isDragging || !clockRef.current || !e.touches[0]) return
+
+    const rect = clockRef.current.getBoundingClientRect()
+    const centerX = rect.width / 2
+    const centerY = rect.height / 2
+    const x = e.touches[0].clientX - rect.left - centerX
+    const y = e.touches[0].clientY - rect.top - centerY
+
+    let angle = Math.atan2(y, x) * (180 / Math.PI) + 90
+
+    if (angle < 0) angle += 360
+
+    if (isDragging === 'hour') {
+      const newHour = Math.round(angle / 30) % 12
+      setHour(newHour === 0 ? 12 : newHour)
+    } else if (isDragging === 'minute') {
+      const newMinute = Math.round(angle / 6) % 60
+      setMinute(newMinute)
+    }
+  }
+
+  const handleMouseUp = () => {
+    setIsDragging(null)
+  }
+
+  const handleTouchEnd = () => {
+    setIsDragging(null)
+  }
 
   const handleConfirm = () => {
-    const displayHour = period === 'AM' ? (hour === 12 ? 12 : hour) : (hour === 12 ? 12 : hour + 12)
-    const timeString = `${String(displayHour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
+    const timeString = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}${period}`
     onChange(timeString)
     setIsOpen(false)
   }
@@ -45,7 +108,15 @@ const ClockTimePicker = ({ value, onChange, disabled = false }: ClockTimePickerP
           <div className="flex flex-col gap-4">
             {/* Clock Visual */}
             <div className="flex flex-col items-center">
-              <div className="relative h-64 w-64 rounded-full border-4 border-slate-300 bg-slate-50">
+              <div
+                ref={clockRef}
+                className="relative h-64 w-64 rounded-full border-4 border-slate-300 bg-slate-50 cursor-default select-none"
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={handleMouseUp}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+              >
                 {/* Hour markers */}
                 {[...Array(12)].map((_, i) => {
                   const angle = (i * 30 - 90) * (Math.PI / 180)
@@ -71,18 +142,22 @@ const ClockTimePicker = ({ value, onChange, disabled = false }: ClockTimePickerP
 
                 {/* Hour hand */}
                 <div
-                  className="absolute left-1/2 top-1/2 w-1 h-16 origin-center rounded-full bg-slate-700"
+                  className="absolute left-1/2 top-1/2 w-1 h-16 origin-center rounded-full bg-slate-700 cursor-pointer"
                   style={{
                     transform: `translate(-50%, -50%) rotate(${(hour % 12) * 30 + minute * 0.5}deg) translateY(-32px)`,
                   }}
+                  onMouseDown={(e) => handleClockMouseDown(e as unknown as React.MouseEvent<HTMLDivElement>, 'hour')}
+                  onTouchStart={(e) => handleClockTouchStart(e, 'hour')}
                 />
 
                 {/* Minute hand */}
                 <div
-                  className="absolute left-1/2 top-1/2 w-0.5 h-20 origin-center rounded-full bg-violet-600"
+                  className="absolute left-1/2 top-1/2 w-0.5 h-20 origin-center rounded-full bg-violet-600 cursor-pointer"
                   style={{
                     transform: `translate(-50%, -50%) rotate(${minute * 6}deg) translateY(-40px)`,
                   }}
+                  onMouseDown={(e) => handleClockMouseDown(e as unknown as React.MouseEvent<HTMLDivElement>, 'minute')}
+                  onTouchStart={(e) => handleClockTouchStart(e, 'minute')}
                 />
               </div>
 
