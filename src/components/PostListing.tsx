@@ -2,6 +2,7 @@ import { useState, type ChangeEvent, type FormEvent } from 'react'
 import type { User } from 'firebase/auth'
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../firebase'
+import ClockTimePicker from './ClockTimePicker'
 
 type Category = 'Football' | 'Basketball' | "Women's Field Hockey"
 
@@ -217,15 +218,10 @@ const PostListing = ({ user }: Props) => {
                   required
                 />
 
-                <input
-                  id="gameTime"
-                  name="gameTime"
-                  type="time"
+                <ClockTimePicker
                   value={formData.gameTime}
-                  onChange={handleFormChange}
+                  onChange={(time) => updateFormData({ gameTime: time })}
                   disabled={formData.allDay}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-200 disabled:opacity-50"
-                  aria-disabled={formData.allDay}
                 />
 
                 <label className="inline-flex items-center gap-2 text-sm text-slate-700">
