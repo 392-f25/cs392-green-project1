@@ -162,6 +162,7 @@ const PostListing = ({ user }: Props) => {
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-700" htmlFor="category">
                 Category
+                <span style={{ color: 'red' }}> *</span>
               </label>
               <select
                 id="category"
@@ -181,6 +182,7 @@ const PostListing = ({ user }: Props) => {
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-700" htmlFor="title">
                 Opponent or Event Name
+                <span style={{ color: 'red' }}> *</span>
               </label>
               <input
                 id="title"
@@ -196,6 +198,7 @@ const PostListing = ({ user }: Props) => {
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-700" htmlFor="gameDate">
                 Date & Time
+                <span style={{ color: 'red' }}> *</span>
               </label>
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                 <input
@@ -220,7 +223,8 @@ const PostListing = ({ user }: Props) => {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <label className="text-sm font-medium text-slate-700" htmlFor="price">
-                  Price per Ticket
+                  Price per Ticket ($)
+                  <span style={{ color: 'red' }}> *</span>
                 </label>
                 <input
                   id="price"
