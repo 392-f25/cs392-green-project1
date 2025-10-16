@@ -1,16 +1,42 @@
-import { type User } from 'firebase/auth'
+import { useEffect, useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { onAuthStateChanged, type User } from 'firebase/auth'
+import { auth } from './firebase'
+import SignIn from './components/SignIn'
 import Layout from './components/Layout'
 import PostListing from './components/PostListing'
 import BuyTickets from './components/BuyTickets'
 
 const App = () => {
-  // Mock user for development - TODO: Re-enable authentication when ready
-  const user = {
-    uid: 'dev-user-123',
-    email: 'dev@u.northwestern.edu',
-    displayName: 'Dev User',
-  } as User
+  const [user, setUser] = useState<User | null>(null)
+  const [authLoading, setAuthLoading] = useState(true)
+
+  // Authentication state listener
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser)
+      setAuthLoading(false)
+    })
+
+    return () => unsubscribe()
+  }, [])
+
+  // Show loading state while checking authentication
+  if (authLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <div className="text-center">
+          <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-slate-200 border-t-violet-600"></div>
+          <p className="mt-4 text-sm text-slate-600">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Show sign-in page if not authenticated
+  if (!user) {
+    return <SignIn />
+  }
 
   return (
     <BrowserRouter>
