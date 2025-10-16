@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
 import type { User } from 'firebase/auth'
-import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore'
+import { collection, query, where, onSnapshot, doc, getDocs, addDoc } from 'firebase/firestore'
 import { db } from '../firebase'
+
+import Chat from './Chat';
 
 type Category = 'All Tickets' | 'Football' | 'Basketball' | "Women's Field Hockey"
 
@@ -34,6 +36,12 @@ const BuyTickets = ({ user }: Props) => {
   const [listings, setListings] = useState<TicketListing[]>([])
   const [loading, setLoading] = useState(true)
   const [purchasingId, setPurchasingId] = useState<string | null>(null)
+  const [confirmModalListing, setConfirmModalListing] = useState<TicketListing | null>(null)
+  const [activeChat, setActiveChat] = useState<{
+    chatId: string;
+    ticket: TicketListing;
+    isSeller: boolean;
+  } | null>(null);
 
   useEffect(() => {
     // Query available listings
@@ -58,27 +66,56 @@ const BuyTickets = ({ user }: Props) => {
       ? listings
       : listings.filter((listing) => listing.category === selectedCategory)
 
-  const handleBuy = async (listingId: string) => {
-    setPurchasingId(listingId)
+  const handleBuyClick = (listing: TicketListing) => {
+    setConfirmModalListing(listing)
+  }
 
-    try {
-      const listingRef = doc(db, 'listings', listingId)
-      await updateDoc(listingRef, {
+  const handleConfirmPurchase = async () => {
+    if (!confirmModalListing) return;
+    setConfirmModalListing(null);
+
+    // Find or create a chat between buyer and seller for this ticket
+    const chatsRef = collection(db, 'chats');
+    const q = query(
+      chatsRef,
+      where('ticketId', '==', confirmModalListing.id),
+      where('participants', 'array-contains', user.uid)
+    );
+    let chatId = '';
+    let chatDoc = null;
+    const snapshot = await getDocs(q);
+    if (!snapshot.empty) {
+      chatDoc = snapshot.docs[0];
+      chatId = chatDoc.id;
+    } else {
+      // Create new chat
+      const docRef = await addDoc(chatsRef, {
+        ticketId: confirmModalListing.id,
+        participants: [user.uid, confirmModalListing.sellerId],
         buyerId: user.uid,
-        buyerName: user.displayName || 'Anonymous',
+        buyerName: user.displayName || user.email || 'User',
         buyerEmail: user.email || '',
-        status: 'sold',
-      })
-
-      // The listing will be automatically removed from view due to the real-time listener
-      setTimeout(() => {
-        setPurchasingId(null)
-      }, 1000)
-    } catch (error) {
-      console.error('Error purchasing ticket:', error)
-      alert('Failed to purchase ticket. Please try again.')
-      setPurchasingId(null)
+        sellerId: confirmModalListing.sellerId,
+        sellerName: confirmModalListing.sellerName,
+        sellerEmail: confirmModalListing.sellerEmail,
+        createdAt: new Date(),
+      });
+      chatId = docRef.id;
     }
+    setActiveChat({
+      chatId,
+      ticket: {
+        ...confirmModalListing,
+        buyerId: user.uid,
+        buyerName: user.displayName || user.email || 'User',
+        buyerEmail: user.email || '',
+      },
+      isSeller: false,
+    });
+  };
+
+  const handleCancelPurchase = () => {
+    setConfirmModalListing(null)
   }
 
   const handleCategoryClick = (category: Category) => {
@@ -97,6 +134,7 @@ const BuyTickets = ({ user }: Props) => {
   }
 
   return (
+    <>
     <div className="min-h-screen bg-slate-50 py-10">
       <div className="mx-auto max-w-6xl px-4">
         <div className="mb-8">
@@ -188,7 +226,7 @@ const BuyTickets = ({ user }: Props) => {
                     ) : (
                       <button
                         type="button"
-                        onClick={() => handleBuy(listing.id)}
+                        onClick={() => handleBuyClick(listing)}
                         disabled={isPurchasing}
                         className="w-full rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
                       >
@@ -202,7 +240,81 @@ const BuyTickets = ({ user }: Props) => {
           </div>
         )}
       </div>
+
+      {/* Confirmation Modal */}
+      {confirmModalListing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+            <h2 className="text-xl font-bold text-slate-900 mb-4">Confirm Purchase</h2>
+            <div className="mb-6 space-y-3">
+              <div>
+                <p className="text-sm font-medium text-slate-700">Event</p>
+                <p className="text-base text-slate-900">{confirmModalListing.title}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-slate-700">Date & Time</p>
+                <p className="text-base text-slate-900">{confirmModalListing.gameDate}</p>
+              </div>
+              <div className="flex justify-between">
+                <div>
+                  <p className="text-sm font-medium text-slate-700">Price</p>
+                  <p className="text-base text-slate-900">${confirmModalListing.price.toFixed(2)} per ticket</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-slate-700">Quantity</p>
+                  <p className="text-base text-slate-900">{confirmModalListing.quantity} ticket{confirmModalListing.quantity > 1 ? 's' : ''}</p>
+                </div>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-slate-700">Section</p>
+                <p className="text-base text-slate-900">{confirmModalListing.section}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-slate-700">Seller</p>
+                <p className="text-base text-slate-900">{confirmModalListing.sellerName}</p>
+              </div>
+              {confirmModalListing.notes && (
+                <div>
+                  <p className="text-sm font-medium text-slate-700">Notes</p>
+                  <p className="text-base text-slate-900">{confirmModalListing.notes}</p>
+                </div>
+              )}
+            </div>
+            <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 mb-6">
+              <p className="text-sm text-amber-800">
+                Are you sure you want to contact the seller to purchase this ticket?
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={handleCancelPurchase}
+                className="flex-1 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmPurchase}
+                className="flex-1 rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-700"
+              >
+                Start Chat
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+    {/* Chat Modal */}
+    {activeChat && (
+      <Chat
+        user={user}
+        chatId={activeChat.chatId}
+        ticket={activeChat.ticket}
+        isSeller={activeChat.ticket.sellerId === user.uid}
+      />
+    )}
+    </>
   )
 }
 

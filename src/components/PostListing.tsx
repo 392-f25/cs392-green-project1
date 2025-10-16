@@ -11,7 +11,6 @@ type FormState = {
   title: string
   gameDate: string
   gameTime: string
-  allDay: boolean
   price: string
   quantity: string
   section: string
@@ -30,7 +29,6 @@ const PostListing = ({ user }: Props) => {
     title: '',
     gameDate: '',
     gameTime: '',
-    allDay: false,
     price: '',
     quantity: '1',
     section: '',
@@ -62,9 +60,6 @@ const PostListing = ({ user }: Props) => {
       case 'gameTime':
         updateFormData({ gameTime: value })
         break
-      case 'allDay':
-        updateFormData({ allDay: (event.target as HTMLInputElement).checked })
-        break
       case 'price':
         updateFormData({ price: value })
         break
@@ -92,8 +87,8 @@ const PostListing = ({ user }: Props) => {
       return
     }
 
-    if (!formData.allDay && !formData.gameTime.trim()) {
-      setFormError('Please provide a time for the event or check "All day".')
+    if (!formData.gameTime.trim()) {
+      setFormError('Please provide a time for the event.')
       return
     }
 
@@ -113,11 +108,7 @@ const PostListing = ({ user }: Props) => {
       await addDoc(collection(db, 'listings'), {
         category: formData.category,
         title: formData.title.trim(),
-        gameDate: formData.allDay
-          ? formData.gameDate.trim()
-          : formData.gameTime
-          ? `${formData.gameDate} ${formData.gameTime}`
-          : formData.gameDate.trim(),
+        gameDate: `${formData.gameDate} ${formData.gameTime}`,
         price: Math.round(parsedPrice * 100) / 100,
         quantity: correctedQuantity,
         section: formData.section.trim() || 'General Admission',
@@ -140,7 +131,6 @@ const PostListing = ({ user }: Props) => {
         title: '',
         gameDate: '',
         gameTime: '',
-        allDay: false,
         price: '',
         quantity: '1',
         section: '',
@@ -221,22 +211,10 @@ const PostListing = ({ user }: Props) => {
                 <ClockTimePicker
                   value={formData.gameTime}
                   onChange={(time) => updateFormData({ gameTime: time })}
-                  disabled={formData.allDay}
+                  disabled={false}
                 />
-
-                <label className="inline-flex items-center gap-2 text-sm text-slate-700">
-                  <input
-                    id="allDay"
-                    name="allDay"
-                    type="checkbox"
-                    checked={formData.allDay}
-                    onChange={handleFormChange}
-                    className="h-4 w-4 rounded border-slate-300 text-violet-600 focus:ring-violet-500"
-                  />
-                  All day
-                </label>
               </div>
-              <p className="mt-1 text-xs text-slate-500">Pick a date and time — or check "All day" if time doesn't apply.</p>
+              <p className="mt-1 text-xs text-slate-500">Pick a date and time for the event.</p>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
