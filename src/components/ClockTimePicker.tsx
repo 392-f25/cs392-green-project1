@@ -83,7 +83,7 @@ const ClockTimePicker = ({ value, onChange, disabled = false }: ClockTimePickerP
   }
 
   const handleHourChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setHour(Math.max(1, Math.min(12, parseInt(e.target.value) || 1)))
+    setHour(Math.max(0, Math.min(12, parseInt(e.target.value) || 0)))
   }
 
   const handleMinuteChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -175,7 +175,7 @@ const ClockTimePicker = ({ value, onChange, disabled = false }: ClockTimePickerP
                 <label className="block text-xs font-medium text-slate-600 mb-1">Hour</label>
                 <input
                   type="number"
-                  min="1"
+                  min="0"
                   max="12"
                   value={hour}
                   onChange={handleHourChange}
