@@ -6,6 +6,7 @@ import SignIn from './components/SignIn'
 import Layout from './components/Layout'
 import PostListing from './components/PostListing'
 import BuyTickets from './components/BuyTickets'
+import MyListings from './components/MyListings'
 
 const App = () => {
   const [user, setUser] = useState<User | null>(null)
@@ -45,6 +46,7 @@ const App = () => {
           <Route index element={<Navigate to="/buy" replace />} />
           <Route path="buy" element={<BuyTickets user={user} />} />
           <Route path="post" element={<PostListing user={user} />} />
+          <Route path="my-listings" element={<MyListings user={user} />} />
         </Route>
       </Routes>
     </BrowserRouter>
