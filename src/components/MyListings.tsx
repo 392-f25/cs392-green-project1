@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import type { User } from 'firebase/auth'
-import { collection, query, where, onSnapshot, doc, deleteDoc } from 'firebase/firestore'
+import { collection, query, where, onSnapshot, doc, deleteDoc, updateDoc, getDocs } from 'firebase/firestore'
 import { db } from '../firebase'
 
 type TicketListing = {
@@ -21,6 +21,13 @@ type TicketListing = {
   status: 'available' | 'sold'
 }
 
+type InterestedBuyer = {
+  buyerId: string
+  buyerName: string
+  buyerEmail: string
+  chatId: string
+}
+
 type Props = {
   user: User
 }
@@ -29,12 +36,14 @@ const MyListings = ({ user }: Props) => {
   const [listings, setListings] = useState<TicketListing[]>([])
   const [loading, setLoading] = useState(true)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [interestedBuyers, setInterestedBuyers] = useState<Record<string, InterestedBuyer[]>>({})
+  const [sellingTo, setSellingTo] = useState<string | null>(null)
 
   useEffect(() => {
     // Query listings where the current user is the seller
     const q = query(collection(db, 'listings'), where('sellerId', '==', user.uid))
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
       const listingsData: TicketListing[] = []
       snapshot.forEach((doc) => {
         listingsData.push({ id: doc.id, ...doc.data() } as TicketListing)
@@ -42,6 +51,31 @@ const MyListings = ({ user }: Props) => {
       // Sort by creation date (newest first)
       listingsData.sort((a, b) => b.id.localeCompare(a.id))
       setListings(listingsData)
+      
+      // Fetch interested buyers for each available listing
+      const buyersMap: Record<string, InterestedBuyer[]> = {}
+      for (const listing of listingsData) {
+        if (listing.status === 'available') {
+          const chatsQuery = query(
+            collection(db, 'chats'),
+            where('ticketId', '==', listing.id),
+            where('sellerId', '==', user.uid)
+          )
+          const chatsSnapshot = await getDocs(chatsQuery)
+          const buyers: InterestedBuyer[] = []
+          chatsSnapshot.forEach((chatDoc) => {
+            const chatData = chatDoc.data()
+            buyers.push({
+              buyerId: chatData.buyerId,
+              buyerName: chatData.buyerName,
+              buyerEmail: chatData.buyerEmail,
+              chatId: chatDoc.id,
+            })
+          })
+          buyersMap[listing.id] = buyers
+        }
+      }
+      setInterestedBuyers(buyersMap)
       setLoading(false)
     })
 
@@ -66,6 +100,35 @@ const MyListings = ({ user }: Props) => {
       alert('Failed to delete listing. Please try again.')
     } finally {
       setDeletingId(null)
+    }
+  }
+
+  const handleSellTo = async (listingId: string, buyer: InterestedBuyer) => {
+    const confirmed = window.confirm(
+      `Are you sure you want to mark this ticket as sold to ${buyer.buyerName}?`
+    )
+
+    if (!confirmed) return
+
+    setSellingTo(listingId)
+
+    try {
+      const listingRef = doc(db, 'listings', listingId)
+      await updateDoc(listingRef, {
+        buyerId: buyer.buyerId,
+        buyerName: buyer.buyerName,
+        buyerEmail: buyer.buyerEmail,
+        status: 'sold',
+        pendingBuyerId: null,
+        pendingBuyerName: null,
+        pendingBuyerEmail: null,
+      })
+      alert(`Ticket marked as sold to ${buyer.buyerName}!`)
+    } catch (error) {
+      console.error('Error marking ticket as sold:', error)
+      alert('Failed to mark ticket as sold. Please try again.')
+    } finally {
+      setSellingTo(null)
     }
   }
 
@@ -111,6 +174,8 @@ const MyListings = ({ user }: Props) => {
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                   {availableListings.map((listing) => {
                     const isDeleting = deletingId === listing.id
+                    const isSelling = sellingTo === listing.id
+                    const buyers = interestedBuyers[listing.id] || []
 
                     return (
                       <article
@@ -146,6 +211,46 @@ const MyListings = ({ user }: Props) => {
 
                         {listing.notes && (
                           <p className="mb-4 text-sm text-slate-600">{listing.notes}</p>
+                        )}
+
+                        {/* Interested Buyers Section */}
+                        {buyers.length > 0 && (
+                          <div className="mb-4 rounded-lg bg-violet-50 border border-violet-200 p-3">
+                            <p className="text-xs font-semibold text-violet-900 mb-2">
+                              Interested Buyers ({buyers.length})
+                            </p>
+                            <div className="space-y-2">
+                              {buyers.map((buyer) => (
+                                <div
+                                  key={buyer.buyerId}
+                                  className="flex items-center justify-between gap-2 rounded bg-white p-2"
+                                >
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium text-slate-900 truncate">
+                                      {buyer.buyerName}
+                                    </p>
+                                    <p className="text-xs text-slate-500 truncate">
+                                      {buyer.buyerEmail}
+                                    </p>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSellTo(listing.id, buyer)}
+                                    disabled={isSelling}
+                                    className="flex-shrink-0 rounded bg-emerald-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  >
+                                    {isSelling ? '...' : 'Sell'}
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {buyers.length === 0 && (
+                          <div className="mb-4 rounded-lg bg-slate-100 border border-slate-200 p-3 text-center">
+                            <p className="text-xs text-slate-600">No offers yet</p>
+                          </div>
                         )}
 
                         <div className="mt-auto pt-4 border-t border-slate-100">

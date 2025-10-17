@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react'
 import type { User } from 'firebase/auth'
-import { collection, query, where, onSnapshot, doc, getDocs, addDoc, updateDoc } from 'firebase/firestore'
+import { collection, query, where, onSnapshot, doc, getDocs, addDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../firebase'
-
-import { useNavigate } from 'react-router-dom';
 
 type Category = 'All Tickets' | 'Football' | 'Basketball' | "Women's Field Hockey"
 
@@ -38,9 +36,8 @@ const BuyTickets = ({ user }: Props) => {
   const [selectedCategory, setSelectedCategory] = useState<Category>('All Tickets')
   const [listings, setListings] = useState<TicketListing[]>([])
   const [loading, setLoading] = useState(true)
-  const [purchasingId, setPurchasingId] = useState<string | null>(null)
   const [confirmModalListing, setConfirmModalListing] = useState<TicketListing | null>(null)
-  const navigate = useNavigate();
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   useEffect(() => {
     // Query available listings
@@ -78,45 +75,50 @@ const BuyTickets = ({ user }: Props) => {
 
   const handleConfirmPurchase = async () => {
     if (!confirmModalListing) return;
+    const ticketTitle = confirmModalListing.title;
     setConfirmModalListing(null);
 
-    // Mark ticket as pending for this buyer
-    const ticketRef = doc(db, 'listings', confirmModalListing.id);
-    await updateDoc(ticketRef, {
-      pendingBuyerId: user.uid,
-      pendingBuyerName: user.displayName || user.email || 'User',
-      pendingBuyerEmail: user.email || '',
-    });
-
-    // Find or create a chat between buyer and seller for this ticket
-    const chatsRef = collection(db, 'chats');
-    const q = query(
-      chatsRef,
-      where('ticketId', '==', confirmModalListing.id),
-      where('participants', 'array-contains', user.uid)
-    );
-    let chatId = '';
-    let chatDoc = null;
-    const snapshot = await getDocs(q);
-    if (!snapshot.empty) {
-      chatDoc = snapshot.docs[0];
-      chatId = chatDoc.id;
-    } else {
-      // Create new chat
-      const docRef = await addDoc(chatsRef, {
-        ticketId: confirmModalListing.id,
-        participants: [user.uid, confirmModalListing.sellerId],
-        buyerId: user.uid,
-        buyerName: user.displayName || user.email || 'User',
-        buyerEmail: user.email || '',
-        sellerId: confirmModalListing.sellerId,
-        sellerName: confirmModalListing.sellerName,
-        sellerEmail: confirmModalListing.sellerEmail,
-        createdAt: new Date(),
+    try {
+      // Mark ticket as pending for this buyer
+      const ticketRef = doc(db, 'listings', confirmModalListing.id);
+      await updateDoc(ticketRef, {
+        pendingBuyerId: user.uid,
+        pendingBuyerName: user.displayName || user.email || 'User',
+        pendingBuyerEmail: user.email || '',
       });
-      chatId = docRef.id;
+
+      // Find or create a chat between buyer and seller for this ticket
+      const chatsRef = collection(db, 'chats');
+      const q = query(
+        chatsRef,
+        where('ticketId', '==', confirmModalListing.id),
+        where('participants', 'array-contains', user.uid)
+      );
+      
+      const snapshot = await getDocs(q);
+      
+      if (snapshot.empty) {
+        // Create new chat
+        await addDoc(chatsRef, {
+          ticketId: confirmModalListing.id,
+          participants: [user.uid, confirmModalListing.sellerId],
+          buyerId: user.uid,
+          buyerName: user.displayName || user.email || 'User',
+          buyerEmail: user.email || '',
+          sellerId: confirmModalListing.sellerId,
+          sellerName: confirmModalListing.sellerName,
+          sellerEmail: confirmModalListing.sellerEmail,
+          createdAt: serverTimestamp(),
+        });
+      }
+
+      // Show success message
+      setSuccessMessage(`Chat started for "${ticketTitle}"! Click the chat icon in the top right to message the seller.`);
+      setTimeout(() => setSuccessMessage(null), 8000);
+    } catch (error: any) {
+      console.error('Error creating chat:', error);
+      alert(`Failed to start chat: ${error?.message || 'Unknown error'}. Please try again.`);
     }
-    navigate(`/chat/${chatId}`);
   };
 
   const handleCancelPurchase = () => {
@@ -142,6 +144,26 @@ const BuyTickets = ({ user }: Props) => {
     <>
     <div className="min-h-screen bg-slate-50 py-10">
       <div className="mx-auto max-w-6xl px-4">
+        {/* Success Message */}
+        {successMessage && (
+          <div className="mb-6 rounded-lg bg-emerald-50 border border-emerald-200 p-4 flex items-start gap-3">
+            <svg className="h-6 w-6 text-emerald-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div>
+              <p className="text-sm font-medium text-emerald-900">{successMessage}</p>
+            </div>
+            <button
+              onClick={() => setSuccessMessage(null)}
+              className="ml-auto text-emerald-600 hover:text-emerald-800"
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        )}
+
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-slate-900">Buy Tickets</h1>
           <p className="mt-2 text-slate-600">
@@ -178,7 +200,6 @@ const BuyTickets = ({ user }: Props) => {
         ) : (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {filteredListings.map((listing) => {
-              const isPurchasing = purchasingId === listing.id
               const isOwnListing = listing.sellerId === user.uid
 
               return (
@@ -232,10 +253,9 @@ const BuyTickets = ({ user }: Props) => {
                       <button
                         type="button"
                         onClick={() => handleBuyClick(listing)}
-                        disabled={isPurchasing}
-                        className="w-full rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="w-full rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-700"
                       >
-                        {isPurchasing ? 'Processing...' : 'Buy Ticket'}
+                        Buy Ticket
                       </button>
                     )}
                   </div>
