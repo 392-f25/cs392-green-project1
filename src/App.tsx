@@ -1,15 +1,9 @@
 import { useEffect, useState } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { onAuthStateChanged, type User } from 'firebase/auth'
 import { auth, db } from './firebase'
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import SignIn from './components/SignIn'
 import Layout from './components/Layout'
-import PostListing from './components/PostListing'
-import BuyTickets from './components/BuyTickets'
-import MyListings from './components/MyListings'
-import MyChats from './components/MyChats'
-import ChatPage from './components/ChatPage'
 
 const App = () => {
   const [user, setUser] = useState<User | null>(null)
@@ -32,10 +26,12 @@ const App = () => {
             photoURL: currentUser.photoURL || '',
           });
         }
+        
       }
     })
     return () => unsubscribe()
   }, [])
+
 
   // Show loading state while checking authentication
   if (authLoading) {
@@ -54,20 +50,7 @@ const App = () => {
     return <SignIn />
   }
 
-  return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Layout user={user} />}>
-          <Route index element={<Navigate to="/buy" replace />} />
-          <Route path="buy" element={<BuyTickets user={user} />} />
-          <Route path="post" element={<PostListing user={user} />} />
-          <Route path="my-listings" element={<MyListings user={user} />} />
-        </Route>
-  <Route path="/chat/:chatId" element={<ChatPage user={user} />} />
-  <Route path="/chats" element={<MyChats user={user} />} />
-      </Routes>
-    </BrowserRouter>
-  )
+  return <Layout user={user} />
 }
 
 export default App

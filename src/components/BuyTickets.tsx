@@ -1,10 +1,7 @@
 import { useState, useEffect } from 'react'
 import type { User } from 'firebase/auth'
-import { collection, query, where, onSnapshot, doc, getDocs, addDoc, updateDoc } from 'firebase/firestore'
+import { collection, query, where, onSnapshot, doc, getDocs, addDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../firebase'
-
-import { useContext } from 'react';
-import { LayoutContext } from './Layout';
 
 type Category = 'All Tickets' | 'Football' | 'Basketball' | "Women's Field Hockey"
 
@@ -33,15 +30,14 @@ const categories: Category[] = ['All Tickets', 'Football', 'Basketball', "Women'
 
 type Props = {
   user: User
+  onStartChat: () => void
 }
 
-const BuyTickets = ({ user }: Props) => {
+const BuyTickets = ({ user, onStartChat }: Props) => {
   const [selectedCategory, setSelectedCategory] = useState<Category>('All Tickets')
   const [listings, setListings] = useState<TicketListing[]>([])
   const [loading, setLoading] = useState(true)
-  const [purchasingId, setPurchasingId] = useState<string | null>(null)
   const [confirmModalListing, setConfirmModalListing] = useState<TicketListing | null>(null)
-  const layoutContext = useContext(LayoutContext);
 
   useEffect(() => {
     // Query available listings
@@ -81,7 +77,6 @@ const BuyTickets = ({ user }: Props) => {
   const handleConfirmPurchase = async () => {
     if (!confirmModalListing) return;
     setConfirmModalListing(null);
-    let chatId = '';
     try {
       // Mark ticket as pending for this buyer
       const ticketRef = doc(db, 'listings', confirmModalListing.id);
@@ -114,11 +109,9 @@ const BuyTickets = ({ user }: Props) => {
         where('participants', 'array-contains', user.uid)
       );
       const chatSnap = await getDocs(chatQ);
-      if (!chatSnap.empty) {
-        chatId = chatSnap.docs[0].id;
-      } else {
+      if (chatSnap.empty) {
         // Create new chat
-        const docRef = await addDoc(chatsRef, {
+        await addDoc(chatsRef, {
           ticketId: confirmModalListing.id,
           participants: [user.uid, sellerUid],
           buyerId: user.uid,
@@ -127,15 +120,12 @@ const BuyTickets = ({ user }: Props) => {
           sellerId: sellerUid,
           sellerName: sellerName,
           sellerEmail: sellerEmail,
-          createdAt: new Date(),
+          createdAt: serverTimestamp(),
         });
-        chatId = docRef.id;
       }
     } finally {
-      // Use LayoutContext to switch to MyChats and highlight chat
-      if (layoutContext) {
-        layoutContext.setActiveSectionAndChat('my-chats', chatId);
-      }
+      // Switch to My Chats tab
+      onStartChat();
     }
   };
 
@@ -198,7 +188,6 @@ const BuyTickets = ({ user }: Props) => {
         ) : (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {filteredListings.map((listing) => {
-              const isPurchasing = purchasingId === listing.id
               const isOwnListing = listing.sellerId === user.uid
 
               return (
@@ -252,10 +241,9 @@ const BuyTickets = ({ user }: Props) => {
                       <button
                         type="button"
                         onClick={() => handleBuyClick(listing)}
-                        disabled={isPurchasing}
-                        className="w-full rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="w-full rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-700"
                       >
-                        {isPurchasing ? 'Processing...' : 'Buy Ticket'}
+                        Buy Ticket
                       </button>
                     )}
                   </div>
