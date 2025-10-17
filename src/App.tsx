@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { onAuthStateChanged, type User } from 'firebase/auth'
-import { auth } from './firebase'
+import { auth, db } from './firebase'
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 import SignIn from './components/SignIn'
 import Layout from './components/Layout'
 import PostListing from './components/PostListing'
 import BuyTickets from './components/BuyTickets'
 import MyListings from './components/MyListings'
+import MyChats from './components/MyChats'
 import ChatPage from './components/ChatPage'
 
 const App = () => {
@@ -15,11 +17,23 @@ const App = () => {
 
   // Authentication state listener
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser)
       setAuthLoading(false)
+      // Add user to users collection if not present
+      if (currentUser) {
+        const userRef = doc(db, 'users', currentUser.uid);
+        const userSnap = await getDoc(userRef);
+        if (!userSnap.exists()) {
+          await setDoc(userRef, {
+            uid: currentUser.uid,
+            displayName: currentUser.displayName || '',
+            email: currentUser.email || '',
+            photoURL: currentUser.photoURL || '',
+          });
+        }
+      }
     })
-
     return () => unsubscribe()
   }, [])
 
@@ -49,7 +63,8 @@ const App = () => {
           <Route path="post" element={<PostListing user={user} />} />
           <Route path="my-listings" element={<MyListings user={user} />} />
         </Route>
-        <Route path="/chat/:chatId" element={<ChatPage user={user} />} />
+  <Route path="/chat/:chatId" element={<ChatPage user={user} />} />
+  <Route path="/chats" element={<MyChats user={user} />} />
       </Routes>
     </BrowserRouter>
   )

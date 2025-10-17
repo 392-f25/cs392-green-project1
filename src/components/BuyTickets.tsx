@@ -3,7 +3,8 @@ import type { User } from 'firebase/auth'
 import { collection, query, where, onSnapshot, doc, getDocs, addDoc, updateDoc } from 'firebase/firestore'
 import { db } from '../firebase'
 
-import { useNavigate } from 'react-router-dom';
+import { useContext } from 'react';
+import { LayoutContext } from './Layout';
 
 type Category = 'All Tickets' | 'Football' | 'Basketball' | "Women's Field Hockey"
 
@@ -40,7 +41,7 @@ const BuyTickets = ({ user }: Props) => {
   const [loading, setLoading] = useState(true)
   const [purchasingId, setPurchasingId] = useState<string | null>(null)
   const [confirmModalListing, setConfirmModalListing] = useState<TicketListing | null>(null)
-  const navigate = useNavigate();
+  const layoutContext = useContext(LayoutContext);
 
   useEffect(() => {
     // Query available listings
@@ -76,47 +77,66 @@ const BuyTickets = ({ user }: Props) => {
     setConfirmModalListing(listing)
   }
 
+  // Accept callback from Layout to switch to MyChats and highlight chat
   const handleConfirmPurchase = async () => {
     if (!confirmModalListing) return;
     setConfirmModalListing(null);
-
-    // Mark ticket as pending for this buyer
-    const ticketRef = doc(db, 'listings', confirmModalListing.id);
-    await updateDoc(ticketRef, {
-      pendingBuyerId: user.uid,
-      pendingBuyerName: user.displayName || user.email || 'User',
-      pendingBuyerEmail: user.email || '',
-    });
-
-    // Find or create a chat between buyer and seller for this ticket
-    const chatsRef = collection(db, 'chats');
-    const q = query(
-      chatsRef,
-      where('ticketId', '==', confirmModalListing.id),
-      where('participants', 'array-contains', user.uid)
-    );
     let chatId = '';
-    let chatDoc = null;
-    const snapshot = await getDocs(q);
-    if (!snapshot.empty) {
-      chatDoc = snapshot.docs[0];
-      chatId = chatDoc.id;
-    } else {
-      // Create new chat
-      const docRef = await addDoc(chatsRef, {
-        ticketId: confirmModalListing.id,
-        participants: [user.uid, confirmModalListing.sellerId],
-        buyerId: user.uid,
-        buyerName: user.displayName || user.email || 'User',
-        buyerEmail: user.email || '',
-        sellerId: confirmModalListing.sellerId,
-        sellerName: confirmModalListing.sellerName,
-        sellerEmail: confirmModalListing.sellerEmail,
-        createdAt: new Date(),
+    try {
+      // Mark ticket as pending for this buyer
+      const ticketRef = doc(db, 'listings', confirmModalListing.id);
+      await updateDoc(ticketRef, {
+        pendingBuyerId: user.uid,
+        pendingBuyerName: user.displayName || user.email || 'User',
+        pendingBuyerEmail: user.email || '',
       });
-      chatId = docRef.id;
+
+      // Always create a new chat between buyer and seller for this ticket
+      // Look up seller in users collection to get correct UID
+      const usersRef = collection(db, 'users');
+      const sellerQ = query(usersRef, where('email', '==', confirmModalListing.sellerEmail));
+      const sellerSnap = await getDocs(sellerQ);
+      let sellerUid = confirmModalListing.sellerId;
+      let sellerName = confirmModalListing.sellerName;
+      let sellerEmail = confirmModalListing.sellerEmail;
+      if (!sellerSnap.empty) {
+        const sellerDoc = sellerSnap.docs[0].data();
+        sellerUid = sellerDoc.uid;
+        sellerName = sellerDoc.displayName || sellerName;
+        sellerEmail = sellerDoc.email || sellerEmail;
+      }
+
+      const chatsRef = collection(db, 'chats');
+      // Check if a chat already exists for this ticket and these participants
+      const chatQ = query(
+        chatsRef,
+        where('ticketId', '==', confirmModalListing.id),
+        where('participants', 'array-contains', user.uid)
+      );
+      const chatSnap = await getDocs(chatQ);
+      if (!chatSnap.empty) {
+        chatId = chatSnap.docs[0].id;
+      } else {
+        // Create new chat
+        const docRef = await addDoc(chatsRef, {
+          ticketId: confirmModalListing.id,
+          participants: [user.uid, sellerUid],
+          buyerId: user.uid,
+          buyerName: user.displayName || user.email || 'User',
+          buyerEmail: user.email || '',
+          sellerId: sellerUid,
+          sellerName: sellerName,
+          sellerEmail: sellerEmail,
+          createdAt: new Date(),
+        });
+        chatId = docRef.id;
+      }
+    } finally {
+      // Use LayoutContext to switch to MyChats and highlight chat
+      if (layoutContext) {
+        layoutContext.setActiveSectionAndChat('my-chats', chatId);
+      }
     }
-    navigate(`/chat/${chatId}`);
   };
 
   const handleCancelPurchase = () => {
