@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
 import type { User } from 'firebase/auth'
-import { collection, query, where, onSnapshot, doc, getDocs, addDoc } from 'firebase/firestore'
+import { collection, query, where, onSnapshot, doc, getDocs, addDoc, updateDoc } from 'firebase/firestore'
 import { db } from '../firebase'
 
-import Chat from './Chat';
+import { useNavigate } from 'react-router-dom';
 
 type Category = 'All Tickets' | 'Football' | 'Basketball' | "Women's Field Hockey"
 
@@ -37,15 +37,15 @@ const BuyTickets = ({ user }: Props) => {
   const [loading, setLoading] = useState(true)
   const [purchasingId, setPurchasingId] = useState<string | null>(null)
   const [confirmModalListing, setConfirmModalListing] = useState<TicketListing | null>(null)
-  const [activeChat, setActiveChat] = useState<{
-    chatId: string;
-    ticket: TicketListing;
-    isSeller: boolean;
-  } | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     // Query available listings
-    const q = query(collection(db, 'listings'), where('status', '==', 'available'))
+    const q = query(
+      collection(db, 'listings'),
+      where('status', '==', 'available'),
+      where('pendingBuyerId', '==', null)
+    )
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const listingsData: TicketListing[] = []
@@ -73,6 +73,14 @@ const BuyTickets = ({ user }: Props) => {
   const handleConfirmPurchase = async () => {
     if (!confirmModalListing) return;
     setConfirmModalListing(null);
+
+    // Mark ticket as pending for this buyer
+    const ticketRef = doc(db, 'listings', confirmModalListing.id);
+    await updateDoc(ticketRef, {
+      pendingBuyerId: user.uid,
+      pendingBuyerName: user.displayName || user.email || 'User',
+      pendingBuyerEmail: user.email || '',
+    });
 
     // Find or create a chat between buyer and seller for this ticket
     const chatsRef = collection(db, 'chats');
@@ -102,16 +110,7 @@ const BuyTickets = ({ user }: Props) => {
       });
       chatId = docRef.id;
     }
-    setActiveChat({
-      chatId,
-      ticket: {
-        ...confirmModalListing,
-        buyerId: user.uid,
-        buyerName: user.displayName || user.email || 'User',
-        buyerEmail: user.email || '',
-      },
-      isSeller: false,
-    });
+    navigate(`/chat/${chatId}`);
   };
 
   const handleCancelPurchase = () => {
@@ -305,15 +304,6 @@ const BuyTickets = ({ user }: Props) => {
         </div>
       )}
     </div>
-    {/* Chat Modal */}
-    {activeChat && (
-      <Chat
-        user={user}
-        chatId={activeChat.chatId}
-        ticket={activeChat.ticket}
-        isSeller={activeChat.ticket.sellerId === user.uid}
-      />
-    )}
     </>
   )
 }

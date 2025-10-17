@@ -7,6 +7,7 @@ import Layout from './components/Layout'
 import PostListing from './components/PostListing'
 import BuyTickets from './components/BuyTickets'
 import MyListings from './components/MyListings'
+import ChatPage from './components/ChatPage'
 
 const App = () => {
   const [user, setUser] = useState<User | null>(null)
@@ -48,6 +49,7 @@ const App = () => {
           <Route path="post" element={<PostListing user={user} />} />
           <Route path="my-listings" element={<MyListings user={user} />} />
         </Route>
+        <Route path="/chat/:chatId" element={<ChatPage user={user} />} />
       </Routes>
     </BrowserRouter>
   )
