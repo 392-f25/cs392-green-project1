@@ -23,6 +23,9 @@ type TicketListing = {
   buyerName: string | null
   buyerEmail: string | null
   status: 'available' | 'sold'
+  pendingBuyerId?: string | null
+  pendingBuyerName?: string | null
+  pendingBuyerEmail?: string | null
 }
 
 const categories: Category[] = ['All Tickets', 'Football', 'Basketball', "Women's Field Hockey"]
@@ -43,8 +46,7 @@ const BuyTickets = ({ user }: Props) => {
     // Query available listings
     const q = query(
       collection(db, 'listings'),
-      where('status', '==', 'available'),
-      where('pendingBuyerId', '==', null)
+      where('status', '==', 'available')
     )
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -61,10 +63,14 @@ const BuyTickets = ({ user }: Props) => {
     return () => unsubscribe()
   }, [])
 
+  // Only show tickets that are not pending for another buyer
+  const visibleListings = listings.filter(
+    (listing) => !listing.pendingBuyerId || listing.pendingBuyerId === ''
+  );
   const filteredListings =
     selectedCategory === 'All Tickets'
-      ? listings
-      : listings.filter((listing) => listing.category === selectedCategory)
+      ? visibleListings
+      : visibleListings.filter((listing) => listing.category === selectedCategory)
 
   const handleBuyClick = (listing: TicketListing) => {
     setConfirmModalListing(listing)
